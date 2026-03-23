@@ -72,7 +72,7 @@ Create empty repos manually first if you prefer; the job skips creation when the
 ### Behaviour
 
 1. **`build`** job runs (Electron builds).
-2. **`mirror-prod`** runs after a successful `build` on **push** to `main`/`master`. The mirror **steps** (checkout, ensure repos, push) run only if all three secrets are non-empty — GitHub Actions does not allow `secrets` in job-level `if:`, so the job may appear to run with steps skipped when secrets are unset.
+2. **`mirror-prod`** runs after a successful `build` on **push** to `main`/`master`. A **Check mirror secrets** step sets `ok=true` only when all three secrets are non-empty; checkout / ensure / push run when `ok=true`. (`secrets` cannot be used in `if:` expressions, so gating uses step outputs instead.)
 3. **Ensures** `PROD_CLIENT_REPO` and `PROD_SERVER_REPO` exist (creates **private** empty repo via API if missing).
 4. **`git push --force`** the current branch (`github.ref_name`) to both remotes.
 

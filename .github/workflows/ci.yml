@@ -47,7 +47,7 @@ jobs:
   # Not GitHub "forks" (those are 1:1 with upstream name). Creates/pushes two prod mirror repos.
   mirror-prod:
     needs: build
-    # secrets.* is not allowed in job-level if: — gate on steps instead (see each step's if:).
+    # secrets.* is not allowed in job or step if: — gate via mirror_gate step outputs (see first step).
     if: |
       success() &&
       github.event_name == 'push' &&
@@ -57,14 +57,27 @@ jobs:
       contents: read
 
     steps:
+      - name: Check mirror secrets
+        id: mirror_gate
+        env:
+          TOKEN: ${{ secrets.PROD_MIRROR_TOKEN }}
+          CLIENT: ${{ secrets.PROD_CLIENT_REPO }}
+          SERVER: ${{ secrets.PROD_SERVER_REPO }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$CLIENT" ] && [ -n "$SERVER" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
-        if: ${{ secrets.PROD_MIRROR_TOKEN != '' && secrets.PROD_CLIENT_REPO != '' && secrets.PROD_SERVER_REPO != '' }}
+        if: ${{ steps.mirror_gate.outputs.ok == 'true' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Ensure clientProd & serverProd repos exist
-        if: ${{ secrets.PROD_MIRROR_TOKEN != '' && secrets.PROD_CLIENT_REPO != '' && secrets.PROD_SERVER_REPO != '' }}
+        if: ${{ steps.mirror_gate.outputs.ok == 'true' }}
         uses: actions/github-script@v7
         env:
           CLIENT: ${{ secrets.PROD_CLIENT_REPO }}
@@ -116,7 +129,7 @@ jobs:
             await ensureRepo(process.env.SERVER);
 
       - name: Push current branch to both prod remotes
-        if: ${{ secrets.PROD_MIRROR_TOKEN != '' && secrets.PROD_CLIENT_REPO != '' && secrets.PROD_SERVER_REPO != '' }}
+        if: ${{ steps.mirror_gate.outputs.ok == 'true' }}
         env:
           TOKEN: ${{ secrets.PROD_MIRROR_TOKEN }}
           CLIENT: ${{ secrets.PROD_CLIENT_REPO }}
