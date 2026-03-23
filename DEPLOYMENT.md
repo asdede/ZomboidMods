@@ -64,8 +64,8 @@ Only on **successful `push`** to **`main`** or **`master`** (not on pull request
 | Secret | Example | Purpose |
 |--------|---------|--------|
 | `PROD_MIRROR_TOKEN` | PAT | Must allow **`repo`**, and permission to **create repos** under the owner (org: `admin:org` or org owner; user: account owner). |
-| `PROD_CLIENT_REPO` | `MyOrg/clientProd` | Full name: **owner/repo** for the client prod mirror. |
-| `PROD_SERVER_REPO` | `MyOrg/serverProd` | Full name for the server prod mirror. |
+| `PROD_CLIENT_REPO` | `MyOrg/clientProd` | **owner/repo** only (no `https://`, no `.git`). The workflow strips those if pasted by mistake. |
+| `PROD_SERVER_REPO` | `MyOrg/serverProd` | Same format as above. |
 
 Create empty repos manually first if you prefer; the job skips creation when they already exist.
 
@@ -77,6 +77,25 @@ Create empty repos manually first if you prefer; the job skips creation when the
 4. **`git push --force`** the current branch (`github.ref_name`) to both remotes.
 
 **Personal account:** `owner` in `owner/clientProd` must match the GitHub user that owns the PAT. **Organization:** the PAT must be allowed to create repositories in that org.
+
+### Error: `Resource not accessible by personal access token` (403) when creating a repo
+
+The API call is **`POST /user/repos`** (user account) or org create. Your PAT is allowed to authenticate but **not** to create new repositories.
+
+**Fastest fix:** On GitHub, **manually create** empty private repos with the exact names in `PROD_CLIENT_REPO` and `PROD_SERVER_REPO`. The workflow only **pushes** after that; it skips creation when `repos.get` succeeds.
+
+**Token fix:** Prefer a **Classic** PAT with the **`repo`** scope. **Fine-grained** PATs often cannot create repos under a personal account via the API even if they can push to existing repos.
+
+### Error: `remote: Repository not found` on `git push`
+
+GitHub often returns **404 / not found** when the repo is **private** but the PAT **cannot** read or push to it (same message as a wrong URL).
+
+Checklist:
+
+1. **Secret format:** `PROD_*_REPO` = `Owner/RepoName` only (e.g. `acme/clientProd`). Not a full URL unless you rely on the workflow’s normalization.
+2. **Repos exist** under that exact owner and name (open them in the browser while logged in as the PAT user).
+3. **Classic PAT:** needs **`repo`** (full private repo access) to push.
+4. **Fine-grained PAT:** add both mirror repos under **Repository access** and grant **Contents: Read and write** (and metadata read).
 
 ---
 

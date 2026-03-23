@@ -103,27 +103,39 @@ jobs:
               } catch (e) {
                 if (e.status !== 404) throw e;
               }
-              if (isOrg) {
-                await github.rest.repos.createInOrg({
-                  org: owner,
-                  name: repo,
-                  private: true,
-                  auto_init: false,
-                });
-              } else {
-                const { data: auth } = await github.rest.users.getAuthenticated();
-                if (auth.login !== owner) {
+              try {
+                if (isOrg) {
+                  await github.rest.repos.createInOrg({
+                    org: owner,
+                    name: repo,
+                    private: true,
+                    auto_init: false,
+                  });
+                } else {
+                  const { data: auth } = await github.rest.users.getAuthenticated();
+                  if (auth.login !== owner) {
+                    throw new Error(
+                      `Cannot create ${fullName}: token user is "${auth.login}" but repo owner is "${owner}". Use a token for that account, or use an org.`
+                    );
+                  }
+                  await github.rest.repos.createForAuthenticatedUser({
+                    name: repo,
+                    private: true,
+                    auto_init: false,
+                  });
+                }
+                core.info(`Created: ${fullName}`);
+              } catch (createErr) {
+                if (createErr.status === 403) {
                   throw new Error(
-                    `Cannot create ${fullName}: token user is "${auth.login}" but repo owner is "${owner}". Use a token for that account, or use an org.`
+                    `GitHub refused to create ${fullName} (403: token cannot create this repo). ` +
+                      `Quick fix: create an empty private repo "${repo}" under ${owner} on github.com, then re-run. ` +
+                      `Or use a Classic PAT with full "repo" scope — Fine-grained PATs often cannot call POST /user/repos. ` +
+                      `Orgs: token needs rights to create repos in that org.`
                   );
                 }
-                await github.rest.repos.createForAuthenticatedUser({
-                  name: repo,
-                  private: true,
-                  auto_init: false,
-                });
+                throw createErr;
               }
-              core.info(`Created: ${fullName}`);
             }
             await ensureRepo(process.env.CLIENT);
             await ensureRepo(process.env.SERVER);
@@ -136,6 +148,22 @@ jobs:
           SERVER: ${{ secrets.PROD_SERVER_REPO }}
           BRANCH: ${{ github.ref_name }}
         run: |
+          # Secrets must end up as owner/repo only (GitHub returns "not found" for bad URL or no access).
+          normalize_repo() {
+            local r="$1"
+            r="${r#https://github.com/}"
+            r="${r#http://github.com/}"
+            r="${r%.git}"
+            r="${r%/}"
+            r="$(echo "$r" | tr -d '[:space:]')"
+            echo "$r"
+          }
+          CLIENT="$(normalize_repo "$CLIENT")"
+          SERVER="$(normalize_repo "$SERVER")"
+          if [[ "$CLIENT" != */* ]] || [[ "$SERVER" != */* ]]; then
+            echo "PROD_CLIENT_REPO / PROD_SERVER_REPO must be owner/repo (e.g. MyOrg/clientProd), not a bare name."
+            exit 1
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote add prod-client "https://x-access-token:${TOKEN}@github.com/${CLIENT}.git"
