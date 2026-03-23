@@ -1,0 +1,4 @@
+name=Clan Map Markers
+id=clan_map_markers
+description=Players in the same faction (or same manual clan tag) can see shared world-map markings. MP-focused; uses server sync.
+version=0.1.2

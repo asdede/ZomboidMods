@@ -1,0 +1,133 @@
+# Builds both Electron apps. On successful push to main/master, mirrors to prod repos (optional secrets).
+#
+# Pull requests: only the "build" job runs (so you get CI on PRs).
+# mirror-prod does NOT run on PR open — it runs on push to main/master (including when you MERGE a PR).
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            modmanager/package-lock.json
+            server/package-lock.json
+
+      - name: Build modmanager
+        working-directory: modmanager
+        run: |
+          npm ci
+          npm run dist -- --linux dir
+        env:
+          CI: true
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Build server maintainer
+        working-directory: server
+        run: |
+          npm ci
+          npm run dist -- --linux dir
+        env:
+          CI: true
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+  # Not GitHub "forks" (those are 1:1 with upstream name). Creates/pushes two prod mirror repos.
+  mirror-prod:
+    needs: build
+    if: |
+      success() &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
+      secrets.PROD_MIRROR_TOKEN != '' &&
+      secrets.PROD_CLIENT_REPO != '' &&
+      secrets.PROD_SERVER_REPO != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure clientProd & serverProd repos exist
+        uses: actions/github-script@v7
+        env:
+          CLIENT: ${{ secrets.PROD_CLIENT_REPO }}
+          SERVER: ${{ secrets.PROD_SERVER_REPO }}
+        with:
+          github-token: ${{ secrets.PROD_MIRROR_TOKEN }}
+          script: |
+            async function ensureRepo(fullName) {
+              const [owner, repo] = fullName.split("/").map((s) => s.trim());
+              if (!owner || !repo) throw new Error(`Bad repo name: ${fullName}`);
+              try {
+                await github.rest.repos.get({ owner, repo });
+                core.info(`Repo exists: ${fullName}`);
+                return;
+              } catch (e) {
+                if (e.status !== 404) throw e;
+              }
+              core.info(`Creating repo: ${fullName}`);
+              let isOrg = false;
+              try {
+                await github.rest.orgs.get({ org: owner });
+                isOrg = true;
+              } catch (e) {
+                if (e.status !== 404) throw e;
+              }
+              if (isOrg) {
+                await github.rest.repos.createInOrg({
+                  org: owner,
+                  name: repo,
+                  private: true,
+                  auto_init: false,
+                });
+              } else {
+                const { data: auth } = await github.rest.users.getAuthenticated();
+                if (auth.login !== owner) {
+                  throw new Error(
+                    `Cannot create ${fullName}: token user is "${auth.login}" but repo owner is "${owner}". Use a token for that account, or use an org.`
+                  );
+                }
+                await github.rest.repos.createForAuthenticatedUser({
+                  name: repo,
+                  private: true,
+                  auto_init: false,
+                });
+              }
+              core.info(`Created: ${fullName}`);
+            }
+            await ensureRepo(process.env.CLIENT);
+            await ensureRepo(process.env.SERVER);
+
+      - name: Push current branch to both prod remotes
+        env:
+          TOKEN: ${{ secrets.PROD_MIRROR_TOKEN }}
+          CLIENT: ${{ secrets.PROD_CLIENT_REPO }}
+          SERVER: ${{ secrets.PROD_SERVER_REPO }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add prod-client "https://x-access-token:${TOKEN}@github.com/${CLIENT}.git"
+          git remote add prod-server "https://x-access-token:${TOKEN}@github.com/${SERVER}.git"
+          git push prod-client "HEAD:refs/heads/${BRANCH}" --force
+          git push prod-server "HEAD:refs/heads/${BRANCH}" --force
