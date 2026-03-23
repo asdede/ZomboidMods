@@ -1,4 +1,7 @@
 # Builds both Electron apps. On successful push to main/master, mirrors to prod repos (optional secrets).
+#
+# Pull requests: only the "build" job runs (so you get CI on PRs).
+# mirror-prod does NOT run on PR open — it runs on push to main/master (including when you MERGE a PR).
 name: CI
 
 on:

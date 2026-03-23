@@ -57,7 +57,10 @@ This is **not** the same as GitHub’s **Fork** button (forks keep one name and 
 
 ### When it runs
 
-Only on **successful `push`** to **`main`** or **`master`** (not on pull request builds), and only if all three secrets below are set.
+Only on **successful `push`** to **`main`** or **`master`**, and only if all three secrets below are set.
+
+- **Opening or updating a PR** runs **`build` only** — **`mirror-prod` does not run** (prod is not updated from every PR).
+- **Merging** a PR into `main`/`master` creates a **`push`** on that branch → **`mirror-prod` runs** (if secrets are set). So you mirror **after** code lands on `main`, not when the PR is opened.
 
 ### Repository secrets (Settings → Secrets and variables → Actions)
 
