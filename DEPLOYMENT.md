@@ -57,10 +57,7 @@ This is **not** the same as GitHub’s **Fork** button (forks keep one name and 
 
 ### When it runs
 
-Only on **successful `push`** to **`main`** or **`master`**, and only if all three secrets below are set.
-
-- **Opening or updating a PR** runs **`build` only** — **`mirror-prod` does not run** (prod is not updated from every PR).
-- **Merging** a PR into `main`/`master` creates a **`push`** on that branch → **`mirror-prod` runs** (if secrets are set). So you mirror **after** code lands on `main`, not when the PR is opened.
+Only on **successful `push`** to **`main`** or **`master`** (not on pull request builds), and only if all three secrets below are set.
 
 ### Repository secrets (Settings → Secrets and variables → Actions)
 
@@ -75,7 +72,7 @@ Create empty repos manually first if you prefer; the job skips creation when the
 ### Behaviour
 
 1. **`build`** job runs (Electron builds).
-2. **`mirror-prod`** runs only if `build` succeeded **and** the three secrets are non-empty.
+2. **`mirror-prod`** runs after a successful `build` on **push** to `main`/`master`. The mirror **steps** (checkout, ensure repos, push) run only if all three secrets are non-empty — GitHub Actions does not allow `secrets` in job-level `if:`, so the job may appear to run with steps skipped when secrets are unset.
 3. **Ensures** `PROD_CLIENT_REPO` and `PROD_SERVER_REPO` exist (creates **private** empty repo via API if missing).
 4. **`git push --force`** the current branch (`github.ref_name`) to both remotes.
 
