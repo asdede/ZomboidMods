@@ -64,7 +64,7 @@ Only on **successful `push`** to **`main`** or **`master`** (not on pull request
 | Secret | Example | Purpose |
 |--------|---------|--------|
 | `PROD_MIRROR_TOKEN` | PAT | Must allow **`repo`**, and permission to **create repos** under the owner (org: `admin:org` or org owner; user: account owner). |
-| `PROD_CLIENT_REPO` | `MyOrg/clientProd` | **owner/repo** only (no `https://`, no `.git`). The workflow strips those if pasted by mistake. |
+| `PROD_CLIENT_REPO` | `MyOrg/clientProd` | **owner/repo** only — no leading `/`, no `https://`, no `.git`. The workflow strips those if pasted by mistake. |
 | `PROD_SERVER_REPO` | `MyOrg/serverProd` | Same format as above. |
 
 Create empty repos manually first if you prefer; the job skips creation when they already exist.
@@ -91,6 +91,8 @@ The API call is **`POST /user/repos`** (user account) or org create. Your PAT is
 GitHub often returns **404 / not found** when the repo is **private** but the PAT **cannot** read or push to it (same message as a wrong URL).
 
 The workflow runs a **preflight** `GET https://api.github.com/repos/owner/repo` and prints the HTTP status before `git push`. **404** there almost always means fix the PAT (or the owner/repo name), not the URL shape.
+
+If the API returns **200** but **`git push` still says “Repository not found”**, the usual cause was **`https://x-access-token:…@github.com/…`**: that pattern is for the Actions **`GITHUB_TOKEN`**, not a **personal PAT**. The workflow now uses **`https://<PAT-owner-login>:<token>@github.com/owner/repo.git`** with URL-encoded credentials (from `GET /user` + Python `urllib.parse.quote`).
 
 Checklist:
 
