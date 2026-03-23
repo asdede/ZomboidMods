@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zomboid Server maintainer</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        padding: 16px;
+        background: #121212;
+        color: #eee;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 1.25rem;
+      }
+      h2 {
+        margin: 16px 0 8px;
+        font-size: 1rem;
+        color: #aaa;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      label {
+        min-width: 140px;
+      }
+      input[type="text"] {
+        flex: 1;
+        min-width: 240px;
+        padding: 8px;
+        background: #1e1e1e;
+        border: 1px solid #444;
+        color: #eee;
+        border-radius: 4px;
+      }
+      select {
+        padding: 8px;
+        background: #1e1e1e;
+        border: 1px solid #444;
+        color: #eee;
+        border-radius: 4px;
+      }
+      button {
+        padding: 8px 14px;
+        cursor: pointer;
+        background: #2a4a6a;
+        border: 1px solid #4a6a8a;
+        color: #eee;
+        border-radius: 4px;
+      }
+      button:hover {
+        background: #345a7a;
+      }
+      button.secondary {
+        background: #333;
+        border-color: #555;
+      }
+      button.danger {
+        background: #4a2020;
+        border: 1px solid #633;
+      }
+      button.danger:hover {
+        background: #5a2828;
+      }
+      .paths {
+        font-size: 0.85rem;
+        color: #888;
+        word-break: break-all;
+        margin: 8px 0;
+        padding: 8px;
+        background: #1a1a1a;
+        border-radius: 4px;
+        border: 1px solid #333;
+      }
+      .status {
+        margin: 12px 0;
+        padding: 10px;
+        background: #1d1d1d;
+        border: 1px solid #333;
+        border-radius: 4px;
+        white-space: pre-wrap;
+        min-height: 2.5em;
+      }
+      .status.error {
+        border-color: #633;
+        color: #faa;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+      th,
+      td {
+        border: 1px solid #333;
+        padding: 6px 8px;
+        text-align: left;
+      }
+      th {
+        background: #222;
+      }
+      tr:nth-child(even) {
+        background: #181818;
+      }
+      tr.in-ini td:first-child {
+        box-shadow: inset 3px 0 0 #2a8a4a;
+      }
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        padding: 8px;
+        font-family: ui-monospace, monospace;
+        font-size: 0.85rem;
+        background: #1e1e1e;
+        border: 1px solid #444;
+        color: #eee;
+        border-radius: 4px;
+      }
+      .hint {
+        font-size: 0.85rem;
+        color: #888;
+        margin: 4px 0 8px;
+      }
+      .muted {
+        color: #c0c0c0;
+      }
+      /* Same as modmanager — not Tailwind, local utilities */
+      .text-green {
+        color: #6ee7b7;
+      }
+      .text-red {
+        color: #f87171;
+      }
+      .text-warn {
+        color: #fcd34d;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Zomboid dedicated server — INI &amp; mods</h1>
+
+    <h2>Paths</h2>
+    <div class="row">
+      <label for="serverRoot">Server folder</label>
+      <input id="serverRoot" type="text" placeholder="Absolute path to …/Server (contains servertest.ini and mods/)" />
+      <button type="button" id="browseRoot">Browse</button>
+    </div>
+    <div class="row">
+      <label for="iniName">INI filename</label>
+      <input id="iniName" type="text" value="servertest.ini" />
+    </div>
+    <div class="row">
+      <label for="modsSep">Mods= separator</label>
+      <select id="modsSep">
+        <option value=";">Semicolon (;) — typical PZ</option>
+        <option value=",">Comma (,)</option>
+      </select>
+      <button type="button" id="saveConfig" class="secondary">Save settings</button>
+      <button type="button" id="refreshAll">Reload INI &amp; mods</button>
+    </div>
+    <div class="paths" id="pathSummary"></div>
+
+    <div class="grid">
+      <div>
+        <h2>Installed in Server/mods</h2>
+        <p class="hint">From each folder’s <code>mod.info</code> (id, name, version).</p>
+        <p class="hint">
+          Status:
+          <span class="text-green">in Mods=</span> = id listed in INI;
+          <span class="text-red">not in Mods=</span> = folder on disk but id missing from
+          <code>Mods=</code>.
+        </p>
+        <div style="overflow-x: auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Use</th>
+                <th>Uninstall</th>
+                <th>id</th>
+                <th>name</th>
+                <th>version</th>
+                <th>folder</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="installedBody"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="iniOrphanHint" hidden></p>
+      </div>
+      <div>
+        <h2>Mods= in INI</h2>
+        <p class="hint">
+          Order matters. Edit list or tick rows on the left, then <strong>Write Mods= to INI</strong>.
+        </p>
+        <textarea id="modsText" placeholder="mod_id_one&#10;mod_id_two&#10;or: mod_a;mod_b"></textarea>
+        <div class="row" style="margin-top: 8px">
+          <button type="button" id="syncFromIni">Load from INI into box</button>
+          <button type="button" id="selectAllInstalled">Select all installed</button>
+          <button type="button" id="clearMods">Clear list</button>
+        </div>
+        <p class="hint">
+          <label><input type="checkbox" id="alsoRemoveFromIni" checked /> Also remove uninstalled mod ids from <code>Mods=</code> in INI</label>
+        </p>
+        <div class="row">
+          <button type="button" id="uninstallFolders" class="danger">Uninstall selected folders from Server/mods</button>
+        </div>
+        <div class="row">
+          <button type="button" id="writeIni">Write Mods= to INI</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="status" class="status">Configure Server folder and reload.</div>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>

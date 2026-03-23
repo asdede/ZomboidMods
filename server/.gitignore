@@ -1,0 +1,4 @@
+.electron-cache/
+.npm-cache/
+node_modules/
+dist/

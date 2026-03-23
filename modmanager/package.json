@@ -1,0 +1,39 @@
+{
+  "name": "zomboid-mod-manager",
+  "version": "0.1.0",
+  "description": "Minimal Electron app to manage and install local Zomboid mods",
+  "main": "main.js",
+  "author": "ZomboidMods",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --publish never"
+  },
+  "build": {
+    "appId": "com.zomboidmods.modmanager",
+    "productName": "Zomboid Mod Manager",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "package.json"
+    ],
+    "linux": {
+      "target": ["AppImage", "dir"],
+      "category": "Utility"
+    },
+    "win": {
+      "target": ["portable", "zip"]
+    },
+    "mac": {
+      "target": ["dmg", "zip"]
+    }
+  },
+  "devDependencies": {
+    "electron": "^37.1.0",
+    "electron-builder": "^25.1.8"
+  }
+}

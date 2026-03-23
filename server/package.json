@@ -1,0 +1,39 @@
+{
+  "name": "zomboid-server-maintainer",
+  "version": "0.1.0",
+  "description": "Zomboid dedicated server: servertest.ini Mods= and Server/mods inventory",
+  "main": "main.js",
+  "author": "ZomboidMods",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --publish never"
+  },
+  "build": {
+    "appId": "com.zomboidmods.servermaintainer",
+    "productName": "Zomboid Server Maintainer",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "package.json"
+    ],
+    "linux": {
+      "target": ["AppImage", "dir"],
+      "category": "Utility"
+    },
+    "win": {
+      "target": ["portable", "zip"]
+    },
+    "mac": {
+      "target": ["dmg", "zip"]
+    }
+  },
+  "devDependencies": {
+    "electron": "^37.1.0",
+    "electron-builder": "^25.1.8"
+  }
+}

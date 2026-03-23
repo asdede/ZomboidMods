@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mod manager</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background: #121212;
+        color: #f3f3f3;
+      }
+      h1 {
+        margin-top: 0;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+      button {
+        padding: 8px 10px;
+        cursor: pointer;
+      }
+      button.danger {
+        background: #4a2020;
+        border: 1px solid #633;
+      }
+      button.danger:hover {
+        background: #5a2828;
+      }
+      input[type="text"] {
+        min-width: 420px;
+        padding: 8px;
+      }
+      .hint {
+        opacity: 0.8;
+        font-size: 0.95rem;
+      }
+      .status {
+        margin: 12px 0;
+        padding: 8px;
+        border: 1px solid #333;
+        background: #1d1d1d;
+        white-space: pre-wrap;
+      }
+      .mods {
+        margin-top: 16px;
+      }
+      .mod {
+        border: 1px solid #303030;
+        background: #1c1c1c;
+        padding: 10px;
+        margin-bottom: 8px;
+      }
+      .mod-title {
+        font-weight: bold;
+      }
+      .muted {
+        color: #c0c0c0;
+      }
+      /* Not Tailwind — local utilities (Tailwind is not in this project) */
+      .text-green {
+        color: #6ee7b7;
+      }
+      .text-red {
+        color: #f87171;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Zomboid Mod Manager - Urpo Edition</h1>
+
+    <div class="row">
+      <label for="installPath"><strong>Install path:</strong></label>
+      <input id="installPath" type="text" placeholder="Choose destination path" />
+      <button type="button" id="browsePath">Browse</button>
+      <button type="button" id="savePath">Save</button>
+    </div>
+    <div class="hint">
+      First setup: choose where selected mod folders should be copied.
+    </div>
+
+    <div class="row" style="margin-top: 16px">
+      <button type="button" id="refreshMods">Refresh mod list</button>
+      <button type="button" id="checkUpdates">Check updates (git pull)</button>
+      <button type="button" id="installSelected">Install selected mods</button>
+      <button type="button" id="uninstallSelected" class="danger">Uninstall selected from install path</button>
+    </div>
+
+    <div id="status" class="status">Loading...</div>
+
+    <div class="mods">
+      <h2 style="font-size: 1rem; margin-bottom: 8px">Repository (source) mods</h2>
+      <div class="hint" id="modsCount"></div>
+      <div id="modsList"></div>
+    </div>
+
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>
