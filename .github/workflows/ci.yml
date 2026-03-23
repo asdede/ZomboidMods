@@ -179,6 +179,39 @@ jobs:
             echo "PROD_CLIENT_REPO / PROD_SERVER_REPO must be owner/repo (e.g. MyOrg/clientProd), not a bare name."
             exit 1
           fi
+          echo "Mirror targets (normalized): CLIENT=${CLIENT} SERVER=${SERVER}"
+          # Preflight: same 404 as git when PAT cannot read a private repo — fail with a clear message.
+          verify_repo_access() {
+            local full="$1"
+            local code
+            code=$(curl -sS -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${full}")
+            echo "GitHub API GET /repos/${full} -> HTTP ${code}"
+            case "$code" in
+              200) return 0 ;;
+              404)
+                echo "::error::Cannot access ${full} with PROD_MIRROR_TOKEN (HTTP 404). Either the repo does not exist, or it is private and this PAT cannot read it (GitHub hides private repos as 404). Use a Classic PAT with repo scope, or Fine-grained: add both repos + Contents Read/Write."
+                return 1
+                ;;
+              403)
+                echo "::error::GitHub denied access to ${full} (HTTP 403). Check token permissions."
+                return 1
+                ;;
+              401)
+                echo "::error::GitHub rejected PROD_MIRROR_TOKEN (HTTP 401). Regenerate the PAT."
+                return 1
+                ;;
+              *)
+                echo "::error::Unexpected HTTP ${code} for ${full}"
+                return 1
+                ;;
+            esac
+          }
+          verify_repo_access "$CLIENT" || exit 1
+          verify_repo_access "$SERVER" || exit 1
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote add prod-client "https://x-access-token:${TOKEN}@github.com/${CLIENT}.git"

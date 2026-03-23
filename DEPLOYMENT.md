@@ -90,6 +90,8 @@ The API call is **`POST /user/repos`** (user account) or org create. Your PAT is
 
 GitHub often returns **404 / not found** when the repo is **private** but the PAT **cannot** read or push to it (same message as a wrong URL).
 
+The workflow runs a **preflight** `GET https://api.github.com/repos/owner/repo` and prints the HTTP status before `git push`. **404** there almost always means fix the PAT (or the owner/repo name), not the URL shape.
+
 Checklist:
 
 1. **Secret format:** `PROD_*_REPO` = `Owner/RepoName` only (e.g. `acme/clientProd`). Not a full URL unless you rely on the workflow’s normalization.
