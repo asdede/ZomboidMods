@@ -85,17 +85,27 @@ jobs:
         with:
           github-token: ${{ secrets.PROD_MIRROR_TOKEN }}
           script: |
+            function normalizeRepo(input) {
+              let r = String(input || "").trim();
+              r = r.replace(/^https?:\/\/github\.com\//i, "");
+              while (r.endsWith("/")) r = r.slice(0, -1);
+              if (r.toLowerCase().endsWith(".git")) r = r.slice(0, -4);
+              while (r.endsWith("/")) r = r.slice(0, -1);
+              return r;
+            }
+
             async function ensureRepo(fullName) {
-              const [owner, repo] = fullName.split("/").map((s) => s.trim());
+              const normalized = normalizeRepo(fullName);
+              const [owner, repo] = normalized.split("/").map((s) => s.trim());
               if (!owner || !repo) throw new Error(`Bad repo name: ${fullName}`);
               try {
                 await github.rest.repos.get({ owner, repo });
-                core.info(`Repo exists: ${fullName}`);
+                core.info(`Repo exists: ${owner}/${repo}`);
                 return;
               } catch (e) {
                 if (e.status !== 404) throw e;
               }
-              core.info(`Creating repo: ${fullName}`);
+              core.info(`Creating repo: ${owner}/${repo}`);
               let isOrg = false;
               try {
                 await github.rest.orgs.get({ org: owner });
@@ -128,7 +138,7 @@ jobs:
               } catch (createErr) {
                 if (createErr.status === 403) {
                   throw new Error(
-                    `GitHub refused to create ${fullName} (403: token cannot create this repo). ` +
+                    `GitHub refused to create ${owner}/${repo} (403: token cannot create this repo). ` +
                       `Quick fix: create an empty private repo "${repo}" under ${owner} on github.com, then re-run. ` +
                       `Or use a Classic PAT with full "repo" scope — Fine-grained PATs often cannot call POST /user/repos. ` +
                       `Orgs: token needs rights to create repos in that org.`
@@ -153,8 +163,13 @@ jobs:
             local r="$1"
             r="${r#https://github.com/}"
             r="${r#http://github.com/}"
+            while [[ "$r" == */ ]]; do
+              r="${r%/}"
+            done
             r="${r%.git}"
-            r="${r%/}"
+            while [[ "$r" == */ ]]; do
+              r="${r%/}"
+            done
             r="$(echo "$r" | tr -d '[:space:]')"
             echo "$r"
           }
