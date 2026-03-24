@@ -44,6 +44,37 @@ jobs:
           CI: true
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      - name: Upload dist (for release job)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            modmanager/dist
+            server/dist
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+
+      - id: create_release
+        uses: elgohr/Github-Release-Action@v5
+        with:
+          title: Dev Build ${{ github.sha }}
+          tag: dev-${{ github.sha }}
+          prerelease: true
+
   # Not GitHub "forks" (those are 1:1 with upstream name). Creates/pushes two prod mirror repos.
   mirror-prod:
     needs: build
@@ -225,7 +256,6 @@ jobs:
           echo "PAT authenticated as: ${GH_USER}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Git HTTPS expects Basic auth (user:token), not credentials in the URL — avoids fine-grained PAT URL bugs.
           AUTH_BASIC=$(printf '%s:%s' "${GH_USER}" "${TOKEN}" | base64 -w0)
           git_push_mirror() {
             local repo_path="$1"
