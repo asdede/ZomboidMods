@@ -44,6 +44,37 @@ jobs:
           CI: true
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      - name: Upload dist (for release job)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            modmanager/dist
+            server/dist
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+
+      - id: create_release
+        uses: elgohr/Github-Release-Action@v5
+        with:
+          title: Dev Build ${{ github.sha }}
+          tag: dev-${{ github.sha }}
+          prerelease: true
+
   # Not GitHub "forks" (those are 1:1 with upstream name). Creates/pushes two prod mirror repos.
   mirror-prod:
     needs: build
@@ -223,10 +254,14 @@ jobs:
             "https://api.github.com/user") || { echo "::error::GET /user failed; check PROD_MIRROR_TOKEN."; exit 1; }
           GH_USER=$(echo "$USER_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['login'])")
           echo "PAT authenticated as: ${GH_USER}"
-          # Use GitHub CLI as git credential helper — embedded user:token URLs often fail with fine-grained PATs even when REST returns 200.
-          export GH_TOKEN="$TOKEN"
-          gh auth setup-git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git push "https://github.com/asdede/clientProd.git"
-          git push "https://github.com/asdede/serverProd.git"
+          AUTH_BASIC=$(printf '%s:%s' "${GH_USER}" "${TOKEN}" | base64 -w0)
+          git_push_mirror() {
+            local repo_path="$1"
+            GIT_TERMINAL_PROMPT=0 git \
+              -c "http.extraHeader=Authorization: Basic ${AUTH_BASIC}" \
+              push "https://github.com/${repo_path}.git" "HEAD:refs/heads/${BRANCH}" --force
+          }
+          git_push_mirror "$CLIENT"
+          git_push_mirror "$SERVER"
