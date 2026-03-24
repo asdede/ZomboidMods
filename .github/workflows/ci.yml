@@ -223,10 +223,15 @@ jobs:
             "https://api.github.com/user") || { echo "::error::GET /user failed; check PROD_MIRROR_TOKEN."; exit 1; }
           GH_USER=$(echo "$USER_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['login'])")
           echo "PAT authenticated as: ${GH_USER}"
-          # Use GitHub CLI as git credential helper — embedded user:token URLs often fail with fine-grained PATs even when REST returns 200.
-          export GH_TOKEN="$TOKEN"
-          gh auth setup-git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git push "https://github.com/asdede/clientProd.git" "HEAD:refs/heads/${BRANCH}" --force
-          git push "https://github.com/asdede/serverProd.git" "HEAD:refs/heads/${BRANCH}" --force
+          # Git HTTPS expects Basic auth (user:token), not credentials in the URL — avoids fine-grained PAT URL bugs.
+          AUTH_BASIC=$(printf '%s:%s' "${GH_USER}" "${TOKEN}" | base64 -w0)
+          git_push_mirror() {
+            local repo_path="$1"
+            GIT_TERMINAL_PROMPT=0 git \
+              -c "http.extraHeader=Authorization: Basic ${AUTH_BASIC}" \
+              push "https://github.com/${repo_path}.git" "HEAD:refs/heads/${BRANCH}" --force
+          }
+          git_push_mirror "$CLIENT"
+          git_push_mirror "$SERVER"
