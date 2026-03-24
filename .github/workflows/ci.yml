@@ -228,5 +228,5 @@ jobs:
           gh auth setup-git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git push "https://github.com/${CLIENT}.git" "HEAD:refs/heads/${BRANCH}" --force
-          git push "https://github.com/${SERVER}.git" "HEAD:refs/heads/${BRANCH}" --force
+          git push "https://github.com/asdede/clientProd.git" "HEAD:refs/heads/${BRANCH}" --force
+          git push "https://github.com/asdede/serverProd.git" "HEAD:refs/heads/${BRANCH}" --force
