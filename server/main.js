@@ -50,6 +50,11 @@ function getModsDir(cfg) {
   return path.join(cfg.serverRoot, "mods");
 }
 
+/** Mods shipped inside the app (resources/mods when packaged; repo `mods/` in dev). */
+function getBundledModsPath() {
+  return path.join(path.dirname(app.getAppPath()), "mods");
+}
+
 /** Split Mods= value into id list (comma or semicolon) */
 function parseModsValue(value) {
   if (!value || typeof value !== "string") return [];
@@ -232,6 +237,7 @@ ipcMain.handle("config:get", async () => {
       iniPath,
       modsDir,
       iniExists,
+      bundledModsPath: getBundledModsPath(),
     },
   };
 });
@@ -376,6 +382,7 @@ ipcMain.handle("state:load-all", async () => {
       serverRoot: cfg.serverRoot,
       iniPath,
       modsDir,
+      bundledModsPath: getBundledModsPath(),
     },
     ini: iniResult,
     mods: modsResult,
