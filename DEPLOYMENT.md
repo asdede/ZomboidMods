@@ -92,7 +92,7 @@ GitHub often returns **404 / not found** when the repo is **private** but the PA
 
 The workflow runs a **preflight** `GET https://api.github.com/repos/owner/repo` and prints the HTTP status before `git push`. **404** there almost always means fix the PAT (or the owner/repo name), not the URL shape.
 
-If the API returns **200** but **`git push` still says “Repository not found”**, the usual cause was **`https://x-access-token:…@github.com/…`**: that pattern is for the Actions **`GITHUB_TOKEN`**, not a **personal PAT**. The workflow now uses **`https://<PAT-owner-login>:<token>@github.com/owner/repo.git`** with URL-encoded credentials (from `GET /user` + Python `urllib.parse.quote`).
+If the API returns **200** but **`git push` still says “Repository not found”**, common causes were **`https://x-access-token:…`** (only for Actions `GITHUB_TOKEN`) or **embedding `user:token` in the URL** (can fail for **fine-grained PATs** even when REST works). The workflow uses **`gh auth setup-git`** with **`GH_TOKEN=$PROD_MIRROR_TOKEN`** so Git uses the **GitHub CLI credential helper** and plain `https://github.com/owner/repo.git` URLs.
 
 Checklist:
 
