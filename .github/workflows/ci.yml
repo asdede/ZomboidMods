@@ -216,23 +216,17 @@ jobs:
           }
           verify_repo_access "$CLIENT" || exit 1
           verify_repo_access "$SERVER" || exit 1
-          # HTTPS git does not treat x-access-token like the Actions GITHUB_TOKEN; PAT must be user:token (see DEPLOYMENT.md).
           USER_JSON=$(curl -sS -f \
             -H "Authorization: Bearer ${TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/user") || { echo "::error::GET /user failed; check PROD_MIRROR_TOKEN."; exit 1; }
           GH_USER=$(echo "$USER_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['login'])")
-          if [ -z "$GH_USER" ]; then
-            echo "::error::Could not read GitHub login from PAT."
-            exit 1
-          fi
-          export GH_USER
           echo "PAT authenticated as: ${GH_USER}"
-          git_push_url() {
-            python3 -c "import os,urllib.parse,sys; u=urllib.parse.quote(os.environ['GH_USER'],safe=''); t=urllib.parse.quote(os.environ['TOKEN'],safe=''); r=sys.argv[1]; print('https://%s:%s@github.com/%s.git' % (u,t,r))" "$1"
-          }
+          # Use GitHub CLI as git credential helper — embedded user:token URLs often fail with fine-grained PATs even when REST returns 200.
+          export GH_TOKEN="$TOKEN"
+          gh auth setup-git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git push "$(git_push_url "$CLIENT")" "HEAD:refs/heads/${BRANCH}" --force
-          git push "$(git_push_url "$SERVER")" "HEAD:refs/heads/${BRANCH}" --force
+          git push "https://github.com/${CLIENT}.git" "HEAD:refs/heads/${BRANCH}" --force
+          git push "https://github.com/${SERVER}.git" "HEAD:refs/heads/${BRANCH}" --force
