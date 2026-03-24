@@ -86,10 +86,10 @@ jobs:
       - name: Publish GitHub release (bundles + mods-only)
         uses: softprops/action-gh-release@v2
         with:
-          name: Release ${GITHUB_REF#refs/tags/}
-          tag_name: Release ${GITHUB_REF#refs/tags/}
+          name: Latest
+          tag_name: Latest
           target_commitish: ${{ github.sha }}
-          prerelease: true
+          prerelease: false
           fail_on_unmatched_files: true
           body: |
             Pick one download:
