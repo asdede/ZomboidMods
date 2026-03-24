@@ -80,7 +80,7 @@ jobs:
             ls -la server/dist modmanager/dist || true
             exit 1
           fi
-          zip -r server-manager mods "${S[@]}"
+          zip -r server-manager.zip mods "${S[@]}"
           zip -r mod-manager.zip mods "${M[@]}"
 
       - name: Publish GitHub release (bundles + mods-only)
@@ -102,6 +102,6 @@ jobs:
 
             Each AppImage already includes `mods/` under `resources/mods`; the loose `mods/` tree in the zip is for copying to a dedicated server or clients without unpacking the AppImage.
           files: |
-            zomboid-server-maintainer-with-mods.zip
-            zomboid-mod-manager-with-mods.zip
+            server-manager.zip
+            mod-manager.zip
             mods.zip
